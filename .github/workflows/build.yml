@@ -1,23 +1,82 @@
 name: Build
+
 on:
   push:
     branches:
       - master
+    tags:
+      - "*"
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '25'
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Build
-        run: mvn -B verify
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
+      - name: Build jar
+        run: mvn -B package
+      - name: Stage jar artifact
+        shell: bash
+        run: |
+          mkdir -p release-artifacts
+          jar_file="$(find target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*.jar' | sort | head -n 1)"
+          if [ -z "$jar_file" ]; then
+            echo "No jar found in target/" >&2
+            exit 1
+          fi
+          cp "$jar_file" release-artifacts/
+          echo "Built $(basename "$jar_file")"
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coreprotect-jar
+          path: release-artifacts/*.jar
+          if-no-files-found: error
+
+  release:
+    name: Upload release asset
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download jar artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coreprotect-jar
+          path: release-artifacts
+      - name: Upload jar to GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+            title="${tag}"
+            notes_args=(--generate-notes)
+          else
+            short_sha="${GITHUB_SHA::7}"
+            tag="${GITHUB_REF_NAME}-${GITHUB_SHA}"
+            title="${GITHUB_REF_NAME} ${short_sha}"
+            notes_args=(--notes "Automated release for ${GITHUB_REF_NAME} commit ${GITHUB_SHA}.")
+          fi
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$title" --target "$GITHUB_SHA" "${notes_args[@]}"
+          fi
+
+          gh release upload "$tag" release-artifacts/*.jar --clobber
