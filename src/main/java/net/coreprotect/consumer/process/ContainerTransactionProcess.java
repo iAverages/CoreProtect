@@ -16,10 +16,22 @@ import org.bukkit.inventory.ItemStack;
 
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.consumer.Consumer;
+import net.coreprotect.consumer.Queue;
 import net.coreprotect.database.logger.ContainerLogger;
+import net.coreprotect.model.entity.EntityContainerTransaction;
+import net.coreprotect.model.entity.EntitySpawnIdentity;
 import net.coreprotect.utility.HopperTransactionUtils;
 
 class ContainerTransactionProcess {
+
+    static boolean processEntity(PreparedStatement preparedStmtContainer, int batchCount, String user, Object object, EntitySpawnIdentity identity) {
+        if (!(object instanceof EntityContainerTransaction) || identity == null) {
+            return false;
+        }
+
+        ContainerLogger.logEntity(preparedStmtContainer, batchCount, user, identity, (EntityContainerTransaction) object);
+        return true;
+    }
 
     static void process(PreparedStatement preparedStmtContainer, PreparedStatement preparedStmtItems, int batchCount, int processId, int id, Material type, int forceData, String user, Object object) {
         if (object instanceof Location) {
@@ -35,14 +47,11 @@ class ContainerTransactionProcess {
                     if (ConfigHandler.oldContainer.get(loggingChestId) == null) {
                         ConfigHandler.removeOldContainerViewer(loggingChestIdSuffix, loggingChestId);
                         ConfigHandler.loggingChest.remove(loggingChestId);
-                        ConfigHandler.forceContainer.remove(loggingChestId);
+                        Queue.removeForceContainer(loggingChestId);
                         HopperTransactionUtils.removeOwner(transactingChestId, loggingChestId);
                         return;
                     }
-                    int force_size = 0;
-                    if (ConfigHandler.forceContainer.get(loggingChestId) != null) {
-                        force_size = ConfigHandler.forceContainer.get(loggingChestId).size();
-                    }
+                    int force_size = Queue.getForceContainerSize(loggingChestId);
                     if (current_chest == forceData || force_size > 0) { // This prevents client side chest sorting mods from messing things up.
                         ContainerLogger.log(preparedStmtContainer, preparedStmtItems, batchCount, user, type, inventory, location);
                         List<ItemStack[]> old = ConfigHandler.oldContainer.get(loggingChestId);
@@ -50,7 +59,7 @@ class ContainerTransactionProcess {
                             ConfigHandler.oldContainer.remove(loggingChestId);
                             ConfigHandler.removeOldContainerViewer(loggingChestIdSuffix, loggingChestId);
                             ConfigHandler.loggingChest.remove(loggingChestId);
-                            ConfigHandler.forceContainer.remove(loggingChestId);
+                            Queue.removeForceContainer(loggingChestId);
                             HopperTransactionUtils.removeOwner(transactingChestId, loggingChestId);
                         }
                     }
