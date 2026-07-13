@@ -17,6 +17,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 
+import net.coreprotect.command.parser.RollbackStateParser;
 import net.coreprotect.config.ConfigHandler;
 
 public class TabHandler implements TabCompleter {
@@ -155,6 +156,8 @@ public class TabHandler implements TabCompleter {
         boolean hasTime;
         boolean hasContainer;
         boolean hasCount;
+        boolean hasSummary;
+        boolean hasRollbackState;
         boolean hasPreview;
         boolean hasPage;
         boolean validContainer;
@@ -176,6 +179,12 @@ public class TabHandler implements TabCompleter {
             }
             else if (arg.equals("#count") || arg.equals("#sum")) {
                 state.hasCount = true;
+            }
+            else if (arg.equals("#summary")) {
+                state.hasSummary = true;
+            }
+            else if (RollbackStateParser.isModifier(arg)) {
+                state.hasRollbackState = true;
             }
             else if (arg.equals("#preview")) {
                 state.hasPreview = true;
@@ -502,9 +511,13 @@ public class TabHandler implements TabCompleter {
         if (firstParam && state.pageLookup && (lastArgument.equals("l") || lastArgument.equals("lookup"))) {
             params.add("page:");
         }
-        else if (!firstParam && argument.startsWith("#")) {
-            if (!state.hasCount) {
-                params.add("#count");
+        if (argument.startsWith("#")) {
+            if (!state.hasCount && !state.hasSummary && (lastArgument.equals("l") || lastArgument.equals("lookup"))) {
+                params.add("#summary");
+            }
+            if (!state.hasRollbackState && (lastArgument.equals("l") || lastArgument.equals("lookup"))) {
+                params.add("#rolledback");
+                params.add("#restored");
             }
             if (!state.hasPreview) {
                 params.add("#preview");

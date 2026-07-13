@@ -77,8 +77,8 @@ public class Language {
         phrases.put(Phrase.HELP_COMMAND, "Display more info for that command.");
         phrases.put(Phrase.HELP_EXCLUDE_1, "Exclude blocks/users.");
         phrases.put(Phrase.HELP_EXCLUDE_2, "Examples: [e:stone], [e:Notch], [e:stone,Notch]");
-        phrases.put(Phrase.HELP_FILTER_1, "Filter chat/command messages.");
-        phrases.put(Phrase.HELP_FILTER_2, "Example: [a:command f:/co]");
+        phrases.put(Phrase.HELP_FILTER_1, "Filter chat, command, or sign text.");
+        phrases.put(Phrase.HELP_FILTER_2, "Examples: [a:command f:/co], [a:sign f:Shop]");
         phrases.put(Phrase.HELP_HEADER, "{0} Help");
         phrases.put(Phrase.HELP_INCLUDE_1, "Include specific blocks/entities.");
         phrases.put(Phrase.HELP_INCLUDE_2, "Examples: [i:stone], [i:zombie], [i:stone,wood,bedrock]");
@@ -154,6 +154,8 @@ public class Language {
         phrases.put(Phrase.LOOKUP_CONTAINER, "{0} {added|removed} {1} {2}.");
         phrases.put(Phrase.LOOKUP_HEADER, "{0} Lookup Results");
         phrases.put(Phrase.LOOKUP_INTERACTION, "{0} {clicked|killed} {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_INTERACTION, "{0} {clicked|sheared|leashed|unleashed} {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_INTERACTION_ORIGIN, "Origin location");
         phrases.put(Phrase.LOOKUP_ENTITY_ORIGIN, "Spawn location");
         phrases.put(Phrase.LOOKUP_ENTITY_SPAWN, "{0} spawned {1}.");
         phrases.put(Phrase.LOOKUP_ITEM, "{0} {picked up|dropped} {1} {2}.");
@@ -166,7 +168,7 @@ public class Language {
         phrases.put(Phrase.LOOKUP_TIME, "{0} ago");
         phrases.put(Phrase.LOOKUP_USERNAME, "{0} logged in as {1}.");
         phrases.put(Phrase.MAXIMUM_RADIUS, "The maximum {lookup|rollback|restore} radius is {0}.");
-        phrases.put(Phrase.MESSAGE_FILTER_TOO_SHORT, "Each message filter must be at least {0} characters.");
+        phrases.put(Phrase.MESSAGE_FILTER_TOO_SHORT, "Minimum message filter length is {0} characters.");
         phrases.put(Phrase.MISSING_ACTION_USER, "To use that action, please specify a user.");
         phrases.put(Phrase.MISSING_LOOKUP_TIME, "Please specify the amount of time to {lookup|rollback|restore}.");
         phrases.put(Phrase.MISSING_LOOKUP_USER, "Please specify a user or {block|radius} to lookup.");

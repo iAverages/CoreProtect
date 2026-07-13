@@ -30,11 +30,12 @@ import net.coreprotect.model.action.LookupActions;
 import net.coreprotect.model.action.SignActions;
 import net.coreprotect.model.item.InventorySources;
 import net.coreprotect.model.item.ItemTransactionActions;
-import net.coreprotect.utility.EntityUtils;
+import net.coreprotect.model.lookup.LookupRollbackState;
 import net.coreprotect.utility.EntitySpawnTracking;
+import net.coreprotect.utility.EntityUtils;
+import net.coreprotect.utility.ErrorReporter;
 import net.coreprotect.utility.MaterialUtils;
 import net.coreprotect.utility.WorldUtils;
-import net.coreprotect.utility.ErrorReporter;
 
 public class LookupRaw extends Queue {
 
@@ -55,6 +56,10 @@ public class LookupRaw extends Queue {
     }
 
     protected static List<Object[]> performLookupRaw(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, List<String> messageFilters, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, Integer entityContainerId) {
+        return performLookupRaw(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, messageFilters, loadedEntityUuids, loadedEntityCandidates, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, entityContainerId, LookupRollbackState.ANY);
+    }
+
+    protected static List<Object[]> performLookupRaw(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, List<String> messageFilters, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, Integer entityContainerId, LookupRollbackState rollbackState) {
         List<Object[]> list = new ArrayList<>();
         List<Integer> invalidRollbackActions = new ArrayList<>();
         invalidRollbackActions.add(LookupActions.INTERACTION);
@@ -77,7 +82,7 @@ public class LookupRaw extends Queue {
 
             Consumer.isPaused = true;
 
-            ResultSet results = rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, messageFilters, loadedEntityUuids, loadedEntityCandidates, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, false, entityContainerId);
+            ResultSet results = rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, messageFilters, loadedEntityUuids, loadedEntityCandidates, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, false, entityContainerId, rollbackState);
 
             while (results.next()) {
                 if (actionList.contains(LookupActions.CHAT) || actionList.contains(LookupActions.COMMAND)) {
@@ -208,7 +213,7 @@ public class LookupRaw extends Queue {
                     int resultWorldId = results.getInt("wid");
 
                     boolean hasTbl = false;
-                    if ((lookup && actionList.size() == 0) || actionList.contains(LookupActions.CONTAINER) || actionList.contains(5) || actionList.contains(LookupActions.ITEM)) {
+                    if ((lookup && actionList.size() == 0) || actionList.contains(LookupActions.INTERACTION) || actionList.contains(LookupActions.CONTAINER) || actionList.contains(5) || actionList.contains(LookupActions.ITEM)) {
                         resultData = results.getInt("data");
                         resultAmount = results.getInt("amount");
                         resultMeta = results.getBytes("metadata");
@@ -262,6 +267,30 @@ public class LookupRaw extends Queue {
     }
 
     static ResultSet rawLookupResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, List<String> messageFilters, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, boolean count, Integer entityContainerId) {
+        return rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, messageFilters, loadedEntityUuids, loadedEntityCandidates, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, count, entityContainerId, LookupRollbackState.ANY);
+    }
+
+    static ResultSet rawLookupResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, List<String> messageFilters, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, boolean count, Integer entityContainerId, LookupRollbackState rollbackState) {
+        return rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, messageFilters, loadedEntityUuids, loadedEntityCandidates, location, radius, rowData, startTime, endTime, limitOffset, limitCount, restrictWorld, lookup, count, entityContainerId, false, false, false, rollbackState);
+    }
+
+    static ResultSet rawSummaryResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, Integer entityContainerId, boolean countGroups) {
+        return rawSummaryResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, loadedEntityUuids, loadedEntityCandidates, location, radius, startTime, endTime, limitOffset, limitCount, restrictWorld, entityContainerId, countGroups, LookupRollbackState.ANY);
+    }
+
+    static ResultSet rawSummaryResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, Integer entityContainerId, boolean countGroups, LookupRollbackState rollbackState) {
+        return rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, Collections.emptyList(), loadedEntityUuids, loadedEntityCandidates, location, radius, null, startTime, endTime, limitOffset, limitCount, restrictWorld, true, false, entityContainerId, true, countGroups, false, rollbackState);
+    }
+
+    static ResultSet rawSummaryPageResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, Integer entityContainerId) {
+        return rawSummaryPageResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, loadedEntityUuids, loadedEntityCandidates, location, radius, startTime, endTime, limitOffset, limitCount, restrictWorld, entityContainerId, LookupRollbackState.ANY);
+    }
+
+    static ResultSet rawSummaryPageResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, Integer entityContainerId, LookupRollbackState rollbackState) {
+        return rawLookupResultSet(statement, user, checkUuids, checkUsers, restrictList, excludeList, excludeUserList, actionList, entityActionFilter, Collections.emptyList(), loadedEntityUuids, loadedEntityCandidates, location, radius, null, startTime, endTime, limitOffset, limitCount, restrictWorld, true, false, entityContainerId, true, false, true, rollbackState);
+    }
+
+    private static ResultSet rawLookupResultSet(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, EntityActionFilter entityActionFilter, List<String> messageFilters, Set<UUID> loadedEntityUuids, Set<UUID> loadedEntityCandidates, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup, boolean count, Integer entityContainerId, boolean summary, boolean countGroups, boolean includeGroupCount, LookupRollbackState rollbackState) {
         ResultSet results = null;
 
         try {
@@ -271,10 +300,13 @@ public class LookupRaw extends Queue {
             }
 
             boolean inventoryQuery = LookupActions.isInventoryLookup(actionList);
+            boolean standardActionLookup = !actionList.contains(LookupActions.CONTAINER) && !actionList.contains(5) && !actionList.contains(LookupActions.ITEM) && !actionList.contains(LookupActions.CHAT) && !actionList.contains(LookupActions.COMMAND) && !actionList.contains(LookupActions.SESSION) && !actionList.contains(LookupActions.USERNAME) && !actionList.contains(LookupActions.SIGN);
+            boolean includeEntityInteractions = !summary && lookup && standardActionLookup && (actionList.isEmpty() || actionList.contains(LookupActions.INTERACTION));
             boolean includeEntityContainers = entityContainerId != null || actionList.contains(LookupActions.CONTAINER) || inventoryQuery || (lookup && actionList.isEmpty());
             boolean includeEntitySpawnLocations = entityActionFilter.includesAnySpawn(actionList, lookup || Config.getGlobal().ROLLBACK_ENTITIES);
             boolean entitySpawnLocation = restrictWorld && location != null && location.getWorld() != null && includeEntitySpawnLocations;
             boolean entityContainerLocation = restrictWorld && location != null && location.getWorld() != null && includeEntityContainers;
+            boolean entityInteractionLocation = restrictWorld && location != null && location.getWorld() != null && includeEntityInteractions;
             boolean entitySpawnRadius = entitySpawnLocation && radius != null;
             boolean entityContainerRadius = entityContainerLocation && radius != null;
             boolean currentEntityRadius = !lookup && (entitySpawnRadius || entityContainerRadius);
@@ -297,6 +329,7 @@ public class LookupRaw extends Queue {
             String query = "";
             String entitySpawnLocationQuery = "";
             String entityContainerLocationQuery = "";
+            String entityInteractionLocationQuery = "";
             String standardLocationQuery = "";
             List<String> messageFilterBindings = new ArrayList<>();
 
@@ -538,7 +571,7 @@ public class LookupRaw extends Queue {
                 }
             }
 
-            if (entitySpawnLocation || entityContainerLocation) {
+            if (entitySpawnLocation || entityContainerLocation || entityInteractionLocation) {
                 int wid = WorldUtils.getWorldId(location.getWorld().getName());
                 String originalLocation = "(wid=" + wid + (bounds.isEmpty() ? "" : " AND " + bounds) + ")";
                 String entityBounds = "";
@@ -581,6 +614,12 @@ public class LookupRaw extends Queue {
                     entityContainerLocationQuery = lookup ? "(" + originalLocation + " OR " + currentLocation + ")" : currentLocation;
                 }
 
+                if (entityInteractionLocation) {
+                    String entitySpawnRows = "SELECT rowid FROM " + ConfigHandler.prefix + "entity_spawn WHERE (" + databaseLocation + ")";
+                    String currentLocation = "entity_spawn_rowid IN(" + entitySpawnRows + ")";
+                    entityInteractionLocationQuery = "(" + originalLocation + " OR " + currentLocation + ")";
+                }
+
                 standardLocationQuery = originalLocation;
                 queryBlock = queryBlock + " " + (entitySpawnLocation ? entitySpawnLocationQuery : originalLocation) + " AND";
             }
@@ -604,8 +643,10 @@ public class LookupRaw extends Queue {
                 queryBlock = queryBlock + " wid=" + worldId + " AND (x = '" + x + "' OR x = '" + x2 + "') AND (z = '" + z + "' OR z = '" + z2 + "') AND y = '" + location.getBlockY() + "' AND";
             }
 
+            String actionPredicate = "";
             if (validAction) {
-                queryBlock = queryBlock + " " + buildActionPredicate(action, actionList, entityActionFilter) + " AND";
+                actionPredicate = buildActionPredicate(action, actionList, entityActionFilter);
+                queryBlock = queryBlock + " " + actionPredicate + " AND";
             }
             else if (inventoryQuery || actionExclude.length() > 0 || includeBlock.length() > 0 || includeEntity.length() > 0 || excludeBlock.length() > 0 || excludeEntity.length() > 0) {
                 queryBlock = queryBlock + " action NOT IN(-1) AND";
@@ -639,6 +680,11 @@ public class LookupRaw extends Queue {
                 queryBlock = queryBlock + " time <= '" + endTime + "' AND";
             }
 
+            String rollbackPredicate = buildRollbackPredicate(rollbackState, actionList.contains(LookupActions.ITEM));
+            if (!rollbackPredicate.isEmpty()) {
+                queryBlock = queryBlock + " " + rollbackPredicate + " AND";
+            }
+
             if (actionList.contains(LookupActions.SIGN)) {
                 queryBlock = queryBlock + " action = '" + SignActions.PLACE + "' AND (LENGTH(line_1) > 0 OR LENGTH(line_2) > 0 OR LENGTH(line_3) > 0 OR LENGTH(line_4) > 0 OR LENGTH(line_5) > 0 OR LENGTH(line_6) > 0 OR LENGTH(line_7) > 0 OR LENGTH(line_8) > 0) AND";
             }
@@ -670,14 +716,25 @@ public class LookupRaw extends Queue {
             if (excludeBlock.length() > 0 || excludeEntity.length() > 0) {
                 queryEntity = queryEntity.replace("type NOT IN(" + (excludeBlock.length() > 0 ? excludeBlock : "0") + ")", "type NOT IN(" + (excludeEntity.length() > 0 ? excludeEntity : "0") + ")");
             }
+            String queryEntityInteraction = queryEntity;
+            if (!entitySpawnLocationQuery.isEmpty()) {
+                queryEntityInteraction = queryEntityInteraction.replace(entitySpawnLocationQuery, standardLocationQuery);
+            }
+            if (!entityInteractionLocationQuery.isEmpty()) {
+                queryEntityInteraction = queryEntityInteraction.replace(standardLocationQuery, entityInteractionLocationQuery);
+            }
+            if (!actionPredicate.isEmpty()) {
+                queryEntityInteraction = queryEntityInteraction.replace(actionPredicate, "1");
+            }
 
             String baseQuery = ((!includeEntity.isEmpty() || !excludeEntity.isEmpty()) ? queryEntity : queryBlock);
-            if (limitOffset > -1 && limitCount > -1) {
+            String blockSourceQuery = actionList.size() == 1 && actionList.contains(LookupActions.INTERACTION) ? queryBlock : baseQuery;
+            if (!summary && limitOffset > -1 && limitCount > -1) {
                 queryLimit = " LIMIT " + limitOffset + ", " + limitCount + "";
                 unionLimit = " ORDER BY time DESC, id DESC LIMIT " + (limitOffset + limitCount) + "";
             }
 
-            String rows = "rowid as id,time,user,wid,x,y,z,action,type,data,meta,blockdata,rolled_back";
+            String rows = summary ? "rowid as id,time,user,wid,x,y,z,type,meta as metadata,data,-1 as amount,action,rolled_back,0 as entity_spawn_rowid" : "rowid as id,time,user,wid,x,y,z,action,type,data,meta,blockdata,rolled_back";
             String queryOrder = " ORDER BY rowid DESC";
 
             if (actionList.contains(LookupActions.CONTAINER) || actionList.contains(5)) {
@@ -709,12 +766,12 @@ public class LookupRaw extends Queue {
             }
             else if (actionList.contains(LookupActions.ITEM)) {
                 queryTable = "item";
-                rows = "rowid as id,time,user,wid,x,y,z,type,data as metadata,0 as data,amount,action,0 as rolled_back,0 as entity_spawn_rowid";
+                rows = "rowid as id,time,user,wid,x,y,z,type,data as metadata,0 as data,amount,action,rolled_back,0 as entity_spawn_rowid";
             }
 
             if (count) {
                 rows = "COUNT(*) as count";
-                queryLimit = " LIMIT 0, 4";
+                queryLimit = " LIMIT 0, 5";
                 queryOrder = "";
                 unionLimit = "";
             }
@@ -768,6 +825,9 @@ public class LookupRaw extends Queue {
             }
             else if (chatLookup || commandLookup) {
                 baseQuery = appendMessageFilters(baseQuery, messageFilters, queryTable, messageFilterBindings);
+            }
+            else if (actionList.contains(LookupActions.SIGN)) {
+                baseQuery = appendSignMessageFilters(baseQuery, messageFilters, messageFilterBindings);
             }
 
             boolean itemLookup = inventoryQuery;
@@ -841,6 +901,23 @@ public class LookupRaw extends Queue {
                 }
             }
 
+            if (includeEntityInteractions) {
+                if (query.isEmpty()) {
+                    if (!count) {
+                        rows = "rowid as id,time,user,wid,x,y,z,type,meta as metadata,data,-1 as amount,action,rolled_back,0 as entity_spawn_rowid";
+                    }
+                    query = unionSelect + "SELECT '0' as tbl," + rows + " FROM " + ConfigHandler.prefix + "block " + index + "WHERE" + blockSourceQuery + unionLimit + ")";
+                }
+
+                if (!count) {
+                    rows = "rowid as id,time,user,wid,x,y,z,type,metadata,action as data,-1 as amount," + LookupActions.INTERACTION + " as action,rolled_back,entity_spawn_rowid";
+                }
+                query += " UNION ALL " + unionSelect + "SELECT '" + InventorySources.ENTITY_INTERACTION + "' as tbl," + rows + " FROM " + ConfigHandler.prefix + "entity_interaction WHERE" + queryEntityInteraction + unionLimit + ")";
+                if (!count) {
+                    queryOrder = " ORDER BY time DESC, tbl DESC, id DESC";
+                }
+            }
+
             if (query.length() == 0) {
                 if (actionExclude.length() > 0) {
                     baseQuery = baseQuery.replace("action NOT IN(-1)", "action NOT IN(" + actionExclude + ")");
@@ -849,7 +926,12 @@ public class LookupRaw extends Queue {
                 query = "SELECT " + "'0' as tbl," + rows + " FROM " + ConfigHandler.prefix + queryTable + " " + index + "WHERE" + baseQuery;
             }
 
-            query = query + queryOrder + queryLimit + "";
+            if (summary) {
+                query = buildSummaryQuery(query, inventoryQuery, countGroups, includeGroupCount, limitOffset, limitCount);
+            }
+            else {
+                query = query + queryOrder + queryLimit + "";
+            }
             results = executeQuery(statement, query, messageFilterBindings);
         }
         catch (Exception e) {
@@ -857,6 +939,17 @@ public class LookupRaw extends Queue {
         }
 
         return results;
+    }
+
+    private static String buildRollbackPredicate(LookupRollbackState rollbackState, boolean inventoryRollback) {
+        if (rollbackState == null || rollbackState == LookupRollbackState.ANY) {
+            return "";
+        }
+
+        if (inventoryRollback) {
+            return rollbackState == LookupRollbackState.ROLLED_BACK ? "rolled_back IN(2,3)" : "rolled_back IN(0,1)";
+        }
+        return rollbackState == LookupRollbackState.ROLLED_BACK ? "rolled_back IN(1,3)" : "rolled_back IN(0,2)";
     }
 
     private static String buildActionPredicate(String actions, List<Integer> actionList, EntityActionFilter entityActionFilter) {
@@ -948,6 +1041,37 @@ public class LookupRaw extends Queue {
         return query.append("))").toString();
     }
 
+    private static String appendSignMessageFilters(String baseQuery, List<String> messageFilters, List<String> bindings) {
+        if (messageFilters == null || messageFilters.isEmpty()) {
+            return baseQuery;
+        }
+
+        String alias = "signFilterRows";
+        StringBuilder query = new StringBuilder(baseQuery).append(" AND rowid IN (");
+        boolean union = false;
+        for (String filter : messageFilters) {
+            String prefix = escapeLike(firstCodePoints(filter, 16)) + "%";
+            String message = escapeLike(filter) + "%";
+            for (int line = 1; line <= 8; line++) {
+                if (union) {
+                    query.append(" UNION ALL ");
+                }
+
+                String column = "line_" + line;
+                String prefixExpression = Config.getGlobal().MYSQL ? alias + "." + column : "substr(" + alias + "." + column + ",1,16)";
+                query.append("SELECT ").append(alias).append(".rowid FROM ")
+                        .append(ConfigHandler.prefix).append("sign ").append(alias)
+                        .append(" WHERE ").append(alias).append(line <= 4 ? ".face = 0" : ".face <> 0")
+                        .append(" AND (").append(prefixExpression).append(" LIKE ? ESCAPE '~' AND ")
+                        .append(alias).append(".").append(column).append(" LIKE ? ESCAPE '~')");
+                bindings.add(prefix);
+                bindings.add(message);
+                union = true;
+            }
+        }
+        return query.append(")").toString();
+    }
+
     private static String firstCodePoints(String value, int maximum) {
         if (value == null) {
             return "";
@@ -963,6 +1087,30 @@ public class LookupRaw extends Queue {
         return value.replace("~", "~~").replace("%", "~%").replace("_", "~_");
     }
 
+    private static String buildSummaryQuery(String sourceQuery, boolean inventoryQuery, boolean countGroups, boolean includeGroupCount, int limitOffset, int limitCount) {
+        int blockPositiveAction = inventoryQuery ? LookupActions.BLOCK_BREAK : LookupActions.BLOCK_PLACE;
+        int transactionPositiveAction = inventoryQuery ? ItemTransactionActions.REMOVE : ItemTransactionActions.ADD;
+        String positiveActions = transactionPositiveAction + "," + ItemTransactionActions.PICKUP + "," + ItemTransactionActions.REMOVE_ENDER + "," + ItemTransactionActions.CREATE + "," + ItemTransactionActions.BUY;
+        String delta = "CASE WHEN amount=-1 THEN CASE WHEN action=" + blockPositiveAction + " THEN 1 ELSE -1 END "
+                + "WHEN action IN(" + positiveActions + ") THEN amount ELSE -amount END";
+        String eligible = "((amount=-1 AND action IN(" + LookupActions.BLOCK_BREAK + "," + LookupActions.BLOCK_PLACE + ")) OR "
+                + "(amount<>-1 AND action BETWEEN " + ItemTransactionActions.REMOVE + " AND " + ItemTransactionActions.BUY + "))";
+        String contributions = "SELECT user,type," + delta + " AS delta FROM (" + sourceQuery + ") summary_source WHERE " + eligible;
+        String grouped = "SELECT user,type,SUM(CASE WHEN delta<0 THEN -delta ELSE 0 END) AS removed_amount,"
+                + "SUM(CASE WHEN delta>0 THEN delta ELSE 0 END) AS placed_amount,SUM(delta) AS net_amount "
+                + "FROM (" + contributions + ") summary_contributions GROUP BY user,type";
+        if (countGroups) {
+            return "SELECT COUNT(*) AS count FROM (" + grouped + ") summary_groups";
+        }
+
+        String totalCount = includeGroupCount ? ",COUNT(*) OVER() AS total_count" : "";
+        String query = "SELECT user,type,removed_amount,placed_amount,net_amount AS amount" + totalCount + " FROM (" + grouped + ") summary_groups ORDER BY ABS(net_amount) DESC,user ASC,type ASC";
+        if (limitOffset > -1 && limitCount > -1) {
+            query += " LIMIT " + limitOffset + ", " + limitCount;
+        }
+        return query;
+    }
+
     private static ResultSet executeQuery(Statement statement, String query, List<String> bindings) throws Exception {
         if (bindings.isEmpty()) {
             return statement.executeQuery(query);
@@ -970,6 +1118,10 @@ public class LookupRaw extends Queue {
 
         PreparedStatement preparedStatement = statement.getConnection().prepareStatement(query);
         try {
+            int queryTimeout = statement.getQueryTimeout();
+            if (queryTimeout > 0) {
+                preparedStatement.setQueryTimeout(queryTimeout);
+            }
             for (int index = 0; index < bindings.size(); index++) {
                 preparedStatement.setString(index + 1, bindings.get(index));
             }
